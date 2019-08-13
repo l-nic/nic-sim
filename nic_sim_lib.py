@@ -4,15 +4,16 @@ import argparse
 import simpy
 import pandas as pd
 import numpy as np
-import os
+import sys, os
 import abc
+import random
 
 # default cmdline args
 cmd_parser = argparse.ArgumentParser()
-cmd_parser.add_argument('--cores', type=int, help='Number of cores to use in the simulation', default=3)
-cmd_parser.add_argument('--num_requests', type=int, help='Number of requests to simulate', default=3)
-cmd_parser.add_argument('--service_time', type=int, help='Service time of each request', default=100)
-cmd_parser.add_argument('--delay', type=int, help='Delay between generation of requests', default=10)
+cmd_parser.add_argument('--cores', type=int, help='Number of cores to use in the simulation', default=4)
+cmd_parser.add_argument('--num_requests', type=int, help='Number of requests to simulate', default=10000)
+cmd_parser.add_argument('--service_time', type=str, help='Distribution of request service times', default='dist/normal.csv')
+cmd_parser.add_argument('--delay', type=str, help='Distribution of delays between generation of requests', default='dist/poisson.csv')
 
 class Logger(object):
     debug = False
@@ -42,10 +43,11 @@ class Core(object):
     """Abstract base class which represents a core to service requests"""
     __metaclass__ = abc.ABCMeta
     count = 0
-    def __init__(self, env, args, logger):
+    def __init__(self, env, args, logger, dispatcher):
         self.env = env
         self.args = args
         self.logger = logger
+        self.dispatcher = dispatcher
         self.queue = simpy.Store(env)
         self.ID = Core.count
         Core.count += 1
@@ -85,20 +87,33 @@ class LoadGenerator(object):
         self.queue = queue
         self.request_cls = request_cls
 
+        self.service_dist = self.load_dist(args.service_time)
+        self.delay_dist = self.load_dist(args.delay)
+
+    def load_dist(self, filename):
+        try:
+            return pd.read_csv(filename)
+        except IOError:
+            print 'ERROR: failed to read file: {}'.format(filename)
+            sys.exit(1)
+
     def start(self):
         """Start generating requests"""
         for i in range(self.args.num_requests):
             self.logger.log('Generating request')
+            # generate the service time and the delay
+            service_time = random.choice(self.service_dist['values'])
+            delay = random.choice(self.delay_dist['values'])
             # put the request in the core's queue
-            self.queue.put(self.request_cls(self.args.service_time, self.env.now))
-            yield self.env.timeout(self.args.delay)
+            self.queue.put(self.request_cls(service_time, self.env.now))
+            yield self.env.timeout(delay)
 
 
 class NicSimulator(object):
     """This class controls the simulation"""
     complete = False
     finish_time = 0
-    sample_period = 10
+    sample_period = 500
     request_cnt = 0
     out_dir = 'out'
     completion_times = {}
@@ -112,7 +127,7 @@ class NicSimulator(object):
         # create cores
         self.cores = []
         for i in range(self.args.cores):
-            self.cores.append(core_cls(self.env, self.args, self.logger))
+            self.cores.append(core_cls(self.env, self.args, self.logger, self.dispatcher))
 
         # connect cores to dispatcher
         self.dispatcher.cores += self.cores
