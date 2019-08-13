@@ -29,7 +29,8 @@ class Request(object):
     """This class represents a request to be scheduled/executed on a core 
     """
     count = 0
-    def __init__(self, service_time, start_time):
+    def __init__(self, args, service_time, start_time):
+        self.args = args
         self.start_time = start_time
         self.service_time = service_time
         self.ID = Request.count
@@ -105,7 +106,7 @@ class LoadGenerator(object):
             service_time = random.choice(self.service_dist['values'])
             delay = random.choice(self.delay_dist['values'])
             # put the request in the core's queue
-            self.queue.put(self.request_cls(service_time, self.env.now))
+            self.queue.put(self.request_cls(self.args, service_time, self.env.now))
             yield self.env.timeout(delay)
 
 

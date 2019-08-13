@@ -24,6 +24,7 @@ class cFCFSCore(Core):
             yield self.env.timeout(msg.service_time)
             self.logger.log('Finished Processing msg at core {}:\n\t"{}"'.format(self.ID, str(msg)))
             # add this core to the list of idle cores
+            yield self.env.timeout(self.args.comm_delay)
             self.dispatcher.idle_cores.put(self)
             NicSimulator.completion_times['all'].append(self.env.now - msg.start_time)
             NicSimulator.request_cnt += 1
@@ -47,10 +48,11 @@ class cFCFSDispatcher(Dispatcher):
             core.queue.put(msg)
 
 def main():
+    cmd_parser.add_argument('--comm_delay', type=int, help='Delay between when core becomes idle and dispatcher finds out', default=0)
     args = cmd_parser.parse_args()
     # Setup and start the simulation
     print 'Running Simulation ...'
-    NicSimulator.out_dir = 'out/cFCFS'
+    NicSimulator.out_dir = 'out/cFCFS-{}'.format(args.comm_delay)
     env = simpy.Environment() 
     s = NicSimulator(env, args, cFCFSCore, cFCFSDispatcher)
     env.run()
