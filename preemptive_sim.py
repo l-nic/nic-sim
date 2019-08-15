@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import random
 
-from nic_sim_lib import cmd_parser, Request, Core, Dispatcher, Logger, NicSimulator
+from nic_sim_lib import cmd_parser, Request, Core, Dispatcher, Logger, NicSimulator, run_nic_sim
 
 Logger.debug = False
 
@@ -16,12 +16,16 @@ class PreempRequest(Request):
         super(PreempRequest, self).__init__(*args)
         self.update_service_time()
 
+    @staticmethod
+    def init_params():
+        PreempRequest.preemp = NicSimulator.config['preemp'].next()
+
     def update_service_time(self):
         # runtime is how long to run the request for at the core before it is preempted
         # service_time is the remaining service time for the request 
-        if self.service_time > self.args.preemp:
-            self.runtime = self.args.preemp
-            self.service_time -= self.args.preemp
+        if self.service_time > PreempRequest.preemp:
+            self.runtime = PreempRequest.preemp
+            self.service_time -= PreempRequest.preemp
         else:
             self.runtime = self.service_time
             self.service_time = 0
@@ -44,8 +48,7 @@ class PreempCore(Core):
             else:
                 NicSimulator.completion_times['all'].append(self.env.now - msg.start_time)
                 NicSimulator.request_cnt += 1
-                if NicSimulator.request_cnt == self.args.num_requests:
-                    NicSimulator.complete = True
+                NicSimulator.check_done(self.env.now)
 
 class PreempDispatcher(Dispatcher):
     """Randomly dispatch requests to cores"""
@@ -63,15 +66,10 @@ class PreempDispatcher(Dispatcher):
             core.queue.put(msg)
 
 def main():
-    cmd_parser.add_argument('--preemp', type=int, help='How long to service each request for (ns) before it is preempted', default=500)
     args = cmd_parser.parse_args()
-    # Setup and start the simulation
-    print 'Running Simulation ...'
-    NicSimulator.out_dir = 'out/preemptive-{}'.format(args.preemp)
-    env = simpy.Environment() 
-    s = NicSimulator(env, args, PreempCore, PreempDispatcher, PreempRequest)
-    env.run()
-    s.dump_logs()
+    # Setup and run the simulation
+    NicSimulator.out_dir = 'out/preemptive'
+    run_nic_sim(args, PreempCore, PreempDispatcher, PreempRequest)
 
 if __name__ == '__main__':
     main()

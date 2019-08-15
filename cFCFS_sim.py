@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import random
 
-from nic_sim_lib import cmd_parser, Request, Core, Dispatcher, Logger, NicSimulator
+from nic_sim_lib import cmd_parser, Request, Core, Dispatcher, Logger, NicSimulator, run_nic_sim
 
 Logger.debug = False
 
@@ -17,6 +17,10 @@ class cFCFSCore(Core):
         # add this core to the list of idle cores
         self.dispatcher.idle_cores.put(self)
 
+    @staticmethod
+    def init_params():
+        cFCFSCore.comm_delay = NicSimulator.config['comm_delay'].next()
+
     def start(self):
         while not NicSimulator.complete:
             msg = yield self.queue.get()
@@ -24,12 +28,11 @@ class cFCFSCore(Core):
             yield self.env.timeout(msg.service_time)
             self.logger.log('Finished Processing msg at core {}:\n\t"{}"'.format(self.ID, str(msg)))
             # add this core to the list of idle cores
-            yield self.env.timeout(self.args.comm_delay)
+            yield self.env.timeout(cFCFSCore.comm_delay)
             self.dispatcher.idle_cores.put(self)
             NicSimulator.completion_times['all'].append(self.env.now - msg.start_time)
             NicSimulator.request_cnt += 1
-            if NicSimulator.request_cnt == self.args.num_requests:
-                NicSimulator.complete = True
+            NicSimulator.check_done(self.env.now)
 
 class cFCFSDispatcher(Dispatcher):
     """Randomly dispatch requests to cores"""
@@ -48,15 +51,10 @@ class cFCFSDispatcher(Dispatcher):
             core.queue.put(msg)
 
 def main():
-    cmd_parser.add_argument('--comm_delay', type=int, help='Delay between when core becomes idle and dispatcher finds out', default=0)
     args = cmd_parser.parse_args()
-    # Setup and start the simulation
-    print 'Running Simulation ...'
-    NicSimulator.out_dir = 'out/cFCFS-{}'.format(args.comm_delay)
-    env = simpy.Environment() 
-    s = NicSimulator(env, args, cFCFSCore, cFCFSDispatcher)
-    env.run()
-    s.dump_logs()
+    # Setup and run the simulation
+    NicSimulator.out_dir = 'out/cFCFS'
+    run_nic_sim(args, cFCFSCore, cFCFSDispatcher)
 
 if __name__ == '__main__':
     main()

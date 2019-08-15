@@ -1,0 +1,10 @@
+{
+  "num_cores": 4,
+  "num_requests": 10000,
+  "service_time": "normal",
+  "service_time_mean": 1000,
+  "service_time_stddev": 100,
+  "arrival_delay": "poisson",
+  "arrival_delay_lambda": [400],
+  "sample_period": 500
+}

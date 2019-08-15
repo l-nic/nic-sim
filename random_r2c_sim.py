@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 import random
 
-from nic_sim_lib import cmd_parser, Request, Core, Dispatcher, Logger, NicSimulator
+from nic_sim_lib import cmd_parser, Request, Core, Dispatcher, Logger, NicSimulator, run_nic_sim
 
 Logger.debug = False
 
@@ -20,8 +20,7 @@ class Run2CompletionCore(Core):
             self.logger.log('Finished Processing msg at core {}:\n\t"{}"'.format(self.ID, str(msg)))
             NicSimulator.completion_times['all'].append(self.env.now - msg.start_time)
             NicSimulator.request_cnt += 1
-            if NicSimulator.request_cnt == self.args.num_requests:
-                NicSimulator.complete = True
+            NicSimulator.check_done(self.env.now)
 
 class RandDispatcher(Dispatcher):
     """Randomly dispatch requests to cores"""
@@ -36,13 +35,9 @@ class RandDispatcher(Dispatcher):
 
 def main():
     args = cmd_parser.parse_args()
-    # Setup and start the simulation
-    print 'Running Simulation ...'
+    # Setup and run the simulation
     NicSimulator.out_dir = 'out/random_r2c'
-    env = simpy.Environment() 
-    s = NicSimulator(env, args, Run2CompletionCore, RandDispatcher)
-    env.run()
-    s.dump_logs()
+    run_nic_sim(args, Run2CompletionCore, RandDispatcher)
 
 if __name__ == '__main__':
     main()
