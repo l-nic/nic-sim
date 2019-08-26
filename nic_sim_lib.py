@@ -177,9 +177,15 @@ class LoadGenerator(object):
         """Start generating requests"""
         for i in range(NicSimulator.num_requests):
             self.logger.log('Generating request')
+            # generate and record service time
+            service_time = self.service_time_dist.next()
+            NicSimulator.service_times['all'].append(service_time)
+            # generate and record arrival delay
+            arrival_delay = self.arrival_delay_dist.next()
+            NicSimulator.arrival_delays['all'].append(arrival_delay)
             # put the request in the core's queue
-            self.queue.put(self.request_cls(self.service_time_dist.next(), self.env.now))
-            yield self.env.timeout(self.arrival_delay_dist.next())
+            self.queue.put(self.request_cls(service_time, self.env.now))
+            yield self.env.timeout(arrival_delay)
 
 
 class NicSimulator(object):
@@ -191,6 +197,8 @@ class NicSimulator(object):
     complete = False
     finish_time = 0
     request_cnt = 0
+    service_times = {'all':[]}
+    arrival_delays = {'all':[]}
     completion_times = {'all':[]}
     # global logs (across runs)
     tail_completion_times = {'99pc':[], '90pc':[]}
@@ -223,6 +231,8 @@ class NicSimulator(object):
         NicSimulator.request_cnt = 0
         NicSimulator.finish_time = 0
         NicSimulator.completion_times = {'all':[]}
+        NicSimulator.service_times = {'all':[]}
+        NicSimulator.arrival_delays = {'all':[]}
         # start generating requests
         self.env.process(self.generator.start())
         # start logging
@@ -256,6 +266,14 @@ class NicSimulator(object):
         # log the measured request completion times
         df = pd.DataFrame(NicSimulator.completion_times)
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'completion_times.csv'))
+
+        # log the generated service times
+        df = pd.DataFrame(NicSimulator.service_times)
+        write_csv(df, os.path.join(NicSimulator.out_run_dir, 'service_times.csv'))
+
+        # log the generated arrival delays
+        df = pd.DataFrame(NicSimulator.arrival_delays)
+        write_csv(df, os.path.join(NicSimulator.out_run_dir, 'arrival_delays.csv'))
 
         # record tail latencies for this run
         tail99 = np.percentile(NicSimulator.completion_times['all'], 99)
@@ -306,6 +324,7 @@ def parse_config(config_file):
 def run_nic_sim(cmdline_args, *args):
     NicSimulator.config = parse_config(cmdline_args.config)
     # make sure output directory exists
+    NicSimulator.out_dir = NicSimulator.config['out_dir'].next()
     out_dir = os.path.join(os.getcwd(), NicSimulator.out_dir)
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)

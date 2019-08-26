@@ -1,4 +1,5 @@
 {
+  "out_dir": "normal_runs/dPRE",
   "num_cores": 4,
   "num_requests": 10000,
   "service_time": "normal",
@@ -7,5 +8,5 @@
   "arrival_delay": "poisson",
   "arrival_delay_lambda": 400,
   "sample_period": 500,
-  "comm_delay": [0, 200, 400]
+  "preemp": [100, 300, 500]
 }

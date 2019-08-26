@@ -55,7 +55,7 @@ class cPRESRPTCore(Core):
             # Continue servicing the request while either the following two conditions are met:
             #  1. The dispatcher queue is empty and this msg still needs to be serviced
             #  2. The dispatcher queue is not empty and this msg is higher priority than the msg at the head of the queue
-            while (len(self.dispatcher.queue.items) == 0 and msg.runtime > 0)
+            while (len(self.dispatcher.queue.items) == 0 and msg.runtime > 0) \
                      or (len(self.dispatcher.queue.items) > 0 and msg < self.dispatcher.queue.items[0] and msg.runtime > 0):
                 yield self.env.timeout(msg.runtime)
                 msg.update_service_time()
@@ -76,7 +76,7 @@ class cPRESRPTDispatcher(Dispatcher):
     def __init__(self, *args):
         super(cPRESRPTDispatcher, self).__init__(*args)
         # override queue attribute with a priority queue
-        self.queue = simpy.PriorityStore()
+        self.queue = simpy.PriorityStore(self.env)
         self.idle_cores = simpy.Store(self.env)
 
     def start(self):
@@ -91,8 +91,7 @@ class cPRESRPTDispatcher(Dispatcher):
 
 def main():
     args = cmd_parser.parse_args()
-    # Setup and run the simulation
-    NicSimulator.out_dir = 'out/cPRESRPT'
+    # Run the simulation
     run_nic_sim(args, cPRESRPTCore, cPRESRPTDispatcher, cPRESRPTRequest)
 
 if __name__ == '__main__':

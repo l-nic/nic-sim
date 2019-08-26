@@ -52,8 +52,7 @@ class cFCFSDispatcher(Dispatcher):
 
 def main():
     args = cmd_parser.parse_args()
-    # Setup and run the simulation
-    NicSimulator.out_dir = 'out/cFCFS'
+    # Run the simulation
     run_nic_sim(args, cFCFSCore, cFCFSDispatcher)
 
 if __name__ == '__main__':

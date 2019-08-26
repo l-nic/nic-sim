@@ -82,8 +82,7 @@ class cPREDispatcher(Dispatcher):
 
 def main():
     args = cmd_parser.parse_args()
-    # Setup and run the simulation
-    NicSimulator.out_dir = 'out/cPRE'
+    # Run the simulation
     run_nic_sim(args, cPRECore, cPREDispatcher, cPRERequest)
 
 if __name__ == '__main__':

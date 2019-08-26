@@ -48,7 +48,7 @@ class cSRPTDispatcher(Dispatcher):
     def __init__(self, *args):
         super(cSRPTDispatcher, self).__init__(*args)
         # override queue attribute with a priority queue
-        self.queue = simpy.PriorityStore()
+        self.queue = simpy.PriorityStore(self.env)
         self.idle_cores = simpy.Store(self.env)
 
     def start(self):
@@ -63,8 +63,7 @@ class cSRPTDispatcher(Dispatcher):
 
 def main():
     args = cmd_parser.parse_args()
-    # Setup and run the simulation
-    NicSimulator.out_dir = 'out/cSRPT'
+    # Run the simulation
     run_nic_sim(args, cSRPTCore, cSRPTDispatcher, cSRPTRequest)
 
 if __name__ == '__main__':

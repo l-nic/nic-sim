@@ -10,7 +10,7 @@ from nic_sim_lib import cmd_parser, Request, Core, Dispatcher, Logger, NicSimula
 
 Logger.debug = False
 
-class Run2CompletionCore(Core):
+class dFCFSCore(Core):
     """Core which processes requests to completion"""
     def start(self):
         while not NicSimulator.complete:
@@ -22,7 +22,7 @@ class Run2CompletionCore(Core):
             NicSimulator.request_cnt += 1
             NicSimulator.check_done(self.env.now)
 
-class RandDispatcher(Dispatcher):
+class dFCFSDispatcher(Dispatcher):
     """Randomly dispatch requests to cores"""
     def start(self):
         while not NicSimulator.complete:
@@ -35,9 +35,8 @@ class RandDispatcher(Dispatcher):
 
 def main():
     args = cmd_parser.parse_args()
-    # Setup and run the simulation
-    NicSimulator.out_dir = 'out/random_r2c'
-    run_nic_sim(args, Run2CompletionCore, RandDispatcher)
+    # Run the simulation
+    run_nic_sim(args, dFCFSCore, dFCFSDispatcher)
 
 if __name__ == '__main__':
     main()
