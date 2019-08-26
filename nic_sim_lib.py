@@ -44,7 +44,6 @@ class Request(object):
     def __str__(self):
         return "Request: service_time={}".format(self.service_time)
 
-
 class Core(object):
     """Abstract base class which represents a core to service requests"""
     __metaclass__ = abc.ABCMeta
