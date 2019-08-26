@@ -88,13 +88,24 @@ class Dispatcher(object):
         pass
 
 def DistGenerator(dist, **kwargs):
+    if dist == 'bimodal':
+        bimodal_samples = map(int, list(np.random.normal(kwargs['lower_mean'], kwargs['lower_stddev'], kwargs['lower_samples']))
+                                   + list(np.random.normal(kwargs['upper_mean'], kwargs['upper_stddev'], kwargs['upper_samples'])))
     while True:
         if dist == 'uniform':
             yield random.randint(kwargs['min'], kwargs['max'])
         elif dist == 'normal':
-            yield int(random.gauss(kwargs['mean'], kwargs['stddev']))
+            yield int(np.random.normal(kwargs['mean'], kwargs['stddev']))
         elif dist == 'poisson':
             yield np.random.poisson(kwargs['lambda']) 
+        elif dist == 'lognormal':
+            yield int(np.random.lognormal(kwargs['mean'], kwargs['sigma']))
+        elif dist == 'exponential':
+            yield int(np.random.exponential(kwargs['scale']))
+        elif dist == 'fixed':
+            yield kwargs['value']
+        elif dist == 'bimodal':
+            yield random.choice(bimodal_samples)
         else:
             print 'ERROR: Unsupported distrbution: {}'.format(dist)
             sys.exit(1)
@@ -120,6 +131,20 @@ class LoadGenerator(object):
             kwargs['stddev'] = NicSimulator.config['service_time_stddev'].next()
         elif self.service_time == 'poisson':
             kwargs['lambda'] = NicSimulator.config['service_time_lambda'].next()
+        elif self.service_time == 'lognormal':
+            kwargs['mean'] = NicSimulator.config['service_time_mean'].next()
+            kwargs['sigma'] = NicSimulator.config['service_time_sigma'].next()
+        elif self.service_time == 'exponential':
+            kwargs['scale'] = NicSimulator.config['service_time_scale'].next()
+        elif self.service_time == 'fixed':
+            kwargs['value'] = NicSimulator.config['service_time_value'].next()
+        elif self.service_time == 'bimodal':
+            kwargs['lower_mean'] = NicSimulator.config['service_time_lower_mean'].next()
+            kwargs['lower_stddev'] = NicSimulator.config['service_time_lower_stddev'].next()
+            kwargs['lower_samples'] = NicSimulator.config['service_time_lower_samples'].next()
+            kwargs['upper_mean'] = NicSimulator.config['service_time_upper_mean'].next()
+            kwargs['upper_stddev'] = NicSimulator.config['service_time_upper_stddev'].next()
+            kwargs['upper_samples'] = NicSimulator.config['service_time_upper_samples'].next()
         self.service_time_dist = DistGenerator(self.service_time, **kwargs)
 
         self.arrival_delay = NicSimulator.config['arrival_delay'].next()
@@ -133,6 +158,20 @@ class LoadGenerator(object):
             kwargs['stddev'] = NicSimulator.config['arrival_delay_stddev'].next()
         elif self.arrival_delay == 'poisson':
             kwargs['lambda'] = NicSimulator.config['arrival_delay_lambda'].next()
+        elif self.arrival_delay == 'lognormal':
+            kwargs['mean'] = NicSimulator.config['arrival_delay_mean'].next()
+            kwargs['sigma'] = NicSimulator.config['arrival_delay_sigma'].next()
+        elif self.arrival_delay == 'exponential':
+            kwargs['scale'] = NicSimulator.config['arrival_delay_scale'].next()
+        elif self.arrival_delay == 'fixed':
+            kwargs['value'] = NicSimulator.config['arrival_delay_value'].next()
+        elif self.arrival_delay == 'bimodal':
+            kwargs['lower_mean'] = NicSimulator.config['arrival_delay_lower_mean'].next()
+            kwargs['lower_stddev'] = NicSimulator.config['arrival_delay_lower_stddev'].next()
+            kwargs['lower_samples'] = NicSimulator.config['arrival_delay_lower_samples'].next()
+            kwargs['upper_mean'] = NicSimulator.config['arrival_delay_upper_mean'].next()
+            kwargs['upper_stddev'] = NicSimulator.config['arrival_delay_upper_stddev'].next()
+            kwargs['upper_samples'] = NicSimulator.config['arrival_delay_upper_samples'].next()
         self.arrival_delay_dist = DistGenerator(self.arrival_delay, **kwargs)
 
     def start(self):
