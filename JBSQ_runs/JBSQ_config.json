@@ -1,0 +1,17 @@
+{
+  "out_dir": "JBSQ",
+  "num_cores": 4,
+  "num_requests": 10000,
+  "service_time": "bimodal",
+  "service_time_lower_mean": 1000,
+  "service_time_lower_stddev": 100,
+  "service_time_lower_samples": 900,
+  "service_time_upper_mean": 50000,
+  "service_time_upper_stddev": 1000,
+  "service_time_upper_samples": 100,
+  "arrival_delay": "poisson",
+  "arrival_delay_lambda": 400,
+  "sample_period": 1000,
+  "queue_bound": 4,
+  "comm_delay": [0, 200, 400, 800, 1600, 3200]
+}

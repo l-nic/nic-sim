@@ -86,6 +86,9 @@ class Dispatcher(object):
         """Start scheduling requests"""
         pass
 
+    def add_cores(self, cores):
+        self.cores += cores
+
 def DistGenerator(dist, **kwargs):
     if dist == 'bimodal':
         bimodal_samples = map(int, list(np.random.normal(kwargs['lower_mean'], kwargs['lower_stddev'], kwargs['lower_samples']))
@@ -218,7 +221,7 @@ class NicSimulator(object):
             self.cores.append(core_cls(self.env, self.logger, self.dispatcher))
 
         # connect cores to dispatcher
-        self.dispatcher.cores += self.cores
+        self.dispatcher.add_cores(self.cores)
         
         self.init_sim()
 
@@ -236,7 +239,8 @@ class NicSimulator(object):
         # start generating requests
         self.env.process(self.generator.start())
         # start logging
-        self.env.process(self.sample_queues())
+        if self.sample_period > 0:
+            self.env.process(self.sample_queues())
 
     def sample_queues(self):
         """Sample avg core queue occupancy at every time"""
