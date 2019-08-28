@@ -100,7 +100,7 @@ def DistGenerator(dist, **kwargs):
         elif dist == 'lognormal':
             yield int(np.random.lognormal(kwargs['mean'], kwargs['sigma']))
         elif dist == 'exponential':
-            yield int(np.random.exponential(kwargs['scale']))
+            yield int(np.random.exponential(kwargs['lambda']))
         elif dist == 'fixed':
             yield kwargs['value']
         elif dist == 'bimodal':
@@ -134,7 +134,7 @@ class LoadGenerator(object):
             kwargs['mean'] = NicSimulator.config['service_time_mean'].next()
             kwargs['sigma'] = NicSimulator.config['service_time_sigma'].next()
         elif self.service_time == 'exponential':
-            kwargs['scale'] = NicSimulator.config['service_time_scale'].next()
+            kwargs['lambda'] = NicSimulator.config['service_time_lambda'].next()
         elif self.service_time == 'fixed':
             kwargs['value'] = NicSimulator.config['service_time_value'].next()
         elif self.service_time == 'bimodal':
@@ -264,25 +264,25 @@ class NicSimulator(object):
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'q_sizes.csv'))
 
         # log the measured request completion times
-        df = pd.DataFrame(NicSimulator.completion_times)
+        df = pd.DataFrame(NicSimulator.completion_times)*1e-3 # microseconds
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'completion_times.csv'))
 
         # log the generated service times
-        df = pd.DataFrame(NicSimulator.service_times)
+        df = pd.DataFrame(NicSimulator.service_times) # nanoseconds
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'service_times.csv'))
 
         # log the generated arrival delays
-        df = pd.DataFrame(NicSimulator.arrival_delays)
+        df = pd.DataFrame(NicSimulator.arrival_delays) # nanoseconds
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'arrival_delays.csv'))
 
         # record tail latencies for this run
-        tail99 = np.percentile(NicSimulator.completion_times['all'], 99)
-        tail90 = np.percentile(NicSimulator.completion_times['all'], 90)
+        tail99 = np.percentile(NicSimulator.completion_times['all'], 99)*1e-3 # microseconds
+        tail90 = np.percentile(NicSimulator.completion_times['all'], 90)*1e-3 # microseconds
         NicSimulator.tail_completion_times['99pc'].append(tail99)
         NicSimulator.tail_completion_times['90pc'].append(tail90)
 
         # record avg throughput for this run
-        throughput = float(NicSimulator.num_requests)/NicSimulator.finish_time # TODO: convert to reasonable units
+        throughput = float(NicSimulator.num_requests)*1e3/(NicSimulator.finish_time) # MRPS
         NicSimulator.avg_throughput['all'].append(throughput)
 
     @staticmethod
@@ -335,6 +335,9 @@ def run_nic_sim(cmdline_args, *args):
     try:
         while True:
             print 'Running simulation {} ...'.format(run_cnt)
+            # initialize random seed
+            random.seed(1)
+            np.random.seed(1)
             # init params for this run on all classes
             for cls in args:
                 cls.init_params()
