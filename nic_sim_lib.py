@@ -215,6 +215,9 @@ class NicSimulator(object):
         self.dispatcher = dispatcher_cls(self.env, self.logger)
         self.generator = LoadGenerator(self.env, self.logger, self.dispatcher.queue, request_cls)
 
+        Request.count = 0
+        Core.count = 0
+
         # create cores
         self.cores = []
         for i in range(self.num_cores):

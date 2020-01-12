@@ -48,16 +48,19 @@ class PREJBSQCore(Core):
                 yield self.env.timeout(msg.runtime)
                 msg.update_service_time()
             self.logger.log('Stopped Processing msg at core {}:\n\t"{}"'.format(self.ID, str(msg)))
-            # add this core to the list of idle cores
-            yield self.env.timeout(PREJBSQCore.comm_delay)
-            self.dispatcher.idle_cores.put(self)
-            if msg.runtime > 0:
-                # the request needs to be processed for longer
-                self.dispatcher.queue.put(msg)
-            else:
-                NicSimulator.completion_times['all'].append(self.env.now - msg.start_time)
-                NicSimulator.request_cnt += 1
-                NicSimulator.check_done(self.env.now)
+            # asynchronously notify dispatcher that this core is available for another msg
+            self.env.process(self.notify_dispatcher(msg))
+
+    def notify_dispatcher(self, msg):
+        yield self.env.timeout(PREJBSQCore.comm_delay)
+        self.dispatcher.idle_cores.put(self)
+        if msg.runtime > 0:
+            # the request needs to be processed for longer
+            self.dispatcher.queue.put(msg)
+        else:
+            NicSimulator.completion_times['all'].append(self.env.now - msg.start_time)
+            NicSimulator.request_cnt += 1
+            NicSimulator.check_done(self.env.now)
 
 class PREJBSQDispatcher(Dispatcher):
     """Centralized dispatcher that waits until a core becomes available"""

@@ -22,12 +22,15 @@ class JBSQCore(Core):
             self.logger.log('Received msg at core {}:\n\t"{}"'.format(self.ID, str(msg)))
             yield self.env.timeout(msg.service_time)
             self.logger.log('Finished Processing msg at core {}:\n\t"{}"'.format(self.ID, str(msg)))
-            # add this core to the list of idle cores
-            yield self.env.timeout(JBSQCore.comm_delay)
-            self.dispatcher.idle_cores.put(self)
-            NicSimulator.completion_times['all'].append(self.env.now - msg.start_time)
-            NicSimulator.request_cnt += 1
-            NicSimulator.check_done(self.env.now)
+            # asynchronously notify dispatcher that this core is available for another msg
+            self.env.process(self.notify_dispatcher(msg))
+
+    def notify_dispatcher(self, msg):
+        yield self.env.timeout(JBSQCore.comm_delay)
+        self.dispatcher.idle_cores.put(self)
+        NicSimulator.completion_times['all'].append(self.env.now - msg.start_time)
+        NicSimulator.request_cnt += 1
+        NicSimulator.check_done(self.env.now)
 
 class JBSQDispatcher(Dispatcher):
     """Dispatch a bounded number of requests to each core"""
