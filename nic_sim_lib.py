@@ -31,9 +31,10 @@ class Request(object):
     """This class represents a request to be scheduled/executed on a core 
     """
     count = 0
-    def __init__(self, service_time, start_time):
+    def __init__(self, service_time, start_time, priority):
         self.start_time = start_time
         self.service_time = service_time
+        self.priority = priority
         self.ID = Request.count
         Request.count += 1
 
@@ -42,7 +43,7 @@ class Request(object):
         pass
 
     def __str__(self):
-        return "Request: service_time={}".format(self.service_time)
+        return "Request: service_time={}, priority={}".format(self.service_time, self.priority)
 
 class Core(object):
     """Abstract base class which represents a core to service requests"""
@@ -180,14 +181,16 @@ class LoadGenerator(object):
         """Start generating requests"""
         for i in range(NicSimulator.num_requests):
             self.logger.log('Generating request')
+            # generate priority for this msg
+            priority = random.randint(0, NicSimulator.num_priorities-1)
             # generate and record service time
             service_time = self.service_time_dist.next()
-            NicSimulator.service_times['all'].append(service_time)
+            NicSimulator.service_times[priority].append(service_time)
             # generate and record arrival delay
             arrival_delay = self.arrival_delay_dist.next()
             NicSimulator.arrival_delays['all'].append(arrival_delay)
             # put the request in the core's queue
-            self.queue.put(self.request_cls(service_time, self.env.now))
+            self.queue.put(self.request_cls(service_time, self.env.now, priority))
             yield self.env.timeout(arrival_delay)
 
 
@@ -200,17 +203,21 @@ class NicSimulator(object):
     complete = False
     finish_time = 0
     request_cnt = 0
-    service_times = {'all':[]}
-    arrival_delays = {'all':[]}
-    completion_times = {'all':[]}
     # global logs (across runs)
-    tail_completion_times = {'99pc':[], '90pc':[]}
+#    tail_completion_times = {'99pc':[], '90pc':[]}
     avg_throughput = {'all':[]}
     def __init__(self, env, core_cls, dispatcher_cls, request_cls=Request, logger_cls=Logger):
         self.env = env
-        self.num_cores = NicSimulator.config['num_cores'].next()
-        self.sample_period = NicSimulator.config['sample_period'].next()
+        NicSimulator.num_cores = NicSimulator.config['num_cores'].next()
+        NicSimulator.sample_period = NicSimulator.config['sample_period'].next()
         NicSimulator.num_requests = NicSimulator.config['num_requests'].next()
+        NicSimulator.num_priorities = NicSimulator.config['num_priorities'].next()
+
+        # initialize logs
+        NicSimulator.completion_times = {p:[] for p in range(NicSimulator.num_priorities)}
+        NicSimulator.service_times = {p:[] for p in range(NicSimulator.num_priorities)}
+        NicSimulator.arrival_delays = {'all':[]}
+
         self.logger = logger_cls(env)
         self.dispatcher = dispatcher_cls(self.env, self.logger)
         self.generator = LoadGenerator(self.env, self.logger, self.dispatcher.queue, request_cls)
@@ -220,7 +227,7 @@ class NicSimulator(object):
 
         # create cores
         self.cores = []
-        for i in range(self.num_cores):
+        for i in range(NicSimulator.num_cores):
             self.cores.append(core_cls(self.env, self.logger, self.dispatcher))
 
         # connect cores to dispatcher
@@ -236,13 +243,10 @@ class NicSimulator(object):
         NicSimulator.complete = False
         NicSimulator.request_cnt = 0
         NicSimulator.finish_time = 0
-        NicSimulator.completion_times = {'all':[]}
-        NicSimulator.service_times = {'all':[]}
-        NicSimulator.arrival_delays = {'all':[]}
         # start generating requests
         self.env.process(self.generator.start())
         # start logging
-        if self.sample_period > 0:
+        if NicSimulator.sample_period > 0:
             self.env.process(self.sample_queues())
 
     def sample_queues(self):
@@ -252,7 +256,7 @@ class NicSimulator(object):
             self.q_sizes['dispatcher'].append(len(self.dispatcher.queue.items))
             for c in self.cores:
                 self.q_sizes[c.ID].append(len(c.queue.items))
-            yield self.env.timeout(self.sample_period)
+            yield self.env.timeout(NicSimulator.sample_period)
 
     @staticmethod
     def check_done(now):
@@ -271,22 +275,22 @@ class NicSimulator(object):
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'q_sizes.csv'))
 
         # log the measured request completion times
-        df = pd.DataFrame(NicSimulator.completion_times)*1e-3 # microseconds
+        df = pd.DataFrame({k: pd.Series(l) for k, l in NicSimulator.completion_times.items()}, dtype=float)*1e-3 # microseconds
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'completion_times.csv'))
 
         # log the generated service times
-        df = pd.DataFrame(NicSimulator.service_times) # nanoseconds
+        df = pd.DataFrame({k: pd.Series(l) for k, l in NicSimulator.service_times.items()}, dtype=float)*1e-3 # microseconds
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'service_times.csv'))
 
         # log the generated arrival delays
         df = pd.DataFrame(NicSimulator.arrival_delays) # nanoseconds
         write_csv(df, os.path.join(NicSimulator.out_run_dir, 'arrival_delays.csv'))
 
-        # record tail latencies for this run
-        tail99 = np.percentile(NicSimulator.completion_times['all'], 99)*1e-3 # microseconds
-        tail90 = np.percentile(NicSimulator.completion_times['all'], 90)*1e-3 # microseconds
-        NicSimulator.tail_completion_times['99pc'].append(tail99)
-        NicSimulator.tail_completion_times['90pc'].append(tail90)
+#        # record tail latencies for this run
+#        tail99 = np.percentile(NicSimulator.completion_times['all'], 99)*1e-3 # microseconds
+#        tail90 = np.percentile(NicSimulator.completion_times['all'], 90)*1e-3 # microseconds
+#        NicSimulator.tail_completion_times['99pc'].append(tail99)
+#        NicSimulator.tail_completion_times['90pc'].append(tail90)
 
         # record avg throughput for this run
         throughput = float(NicSimulator.num_requests)*1e3/(NicSimulator.finish_time) # MRPS
@@ -294,9 +298,9 @@ class NicSimulator(object):
 
     @staticmethod
     def dump_global_logs():
-        # log tail completion_times
-        df = pd.DataFrame(NicSimulator.tail_completion_times)
-        write_csv(df, os.path.join(NicSimulator.out_dir, 'tail_completion_times.csv'))
+#        # log tail completion_times
+#        df = pd.DataFrame(NicSimulator.tail_completion_times)
+#        write_csv(df, os.path.join(NicSimulator.out_dir, 'tail_completion_times.csv'))
 
         # log avg throughput
         df = pd.DataFrame(NicSimulator.avg_throughput)
@@ -343,8 +347,8 @@ def run_nic_sim(cmdline_args, *args):
         while True:
             print 'Running simulation {} ...'.format(run_cnt)
             # initialize random seed
-            random.seed(1)
-            np.random.seed(1)
+#            random.seed(1)
+#            np.random.seed(1)
             # init params for this run on all classes
             for cls in args:
                 cls.init_params()
