@@ -81,10 +81,6 @@ class LNICCore(Core):
 
 class LNICDispatcher(Dispatcher):
     """Send requests to the core indicated in the message"""
-    def __init__(self, *args):
-        super(LNICDispatcher, self).__init__(*args)
-        # TODO(sibanez): do I need this here?
-
     def start(self):
         while not NicSimulator.complete:
             # wait for a msg to arrive

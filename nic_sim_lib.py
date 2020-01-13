@@ -347,8 +347,8 @@ def run_nic_sim(cmdline_args, *args):
         while True:
             print 'Running simulation {} ...'.format(run_cnt)
             # initialize random seed
-#            random.seed(1)
-#            np.random.seed(1)
+            random.seed(1)
+            np.random.seed(1)
             # init params for this run on all classes
             for cls in args:
                 cls.init_params()
